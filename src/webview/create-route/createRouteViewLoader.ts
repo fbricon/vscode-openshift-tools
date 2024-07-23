@@ -129,7 +129,7 @@ export default class CreateRouteViewLoader {
                         action: 'error',
                         data: `${err}`,
                     });
-                    void vscode.window.showErrorMessage(err);
+                    void vscode.window.showErrorMessage(`${err}`);
                 }
                 break;
             }

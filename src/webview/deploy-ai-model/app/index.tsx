@@ -3,14 +3,13 @@
  *  Licensed under the MIT License. See LICENSE file in the project root for license information.
  *-----------------------------------------------------------------------------------------------*/
 
-export enum GlyphChars {
-    Asterisk = '\u2217',
-    Check = '\u2713',
-    Space = '\u00a0',
-    Push = '\u25C9',
-    NotPushed = '\u25CE',
-    NoContext = '\u25CB',
-    LocallyDeleted = '\u2297'
-}
+import * as ReactDOM from 'react-dom';
+import * as React from 'react';
+import { CreateService } from './createForm';
+import { WebviewErrorBoundary } from '../../common/webviewErrorBoundary';
 
-export const ExtensionID = 'redhat.vscode-openshift-connector';
+ReactDOM.render((
+  <WebviewErrorBoundary webviewName='deployAiModelView'>
+    <CreateService />
+  </WebviewErrorBoundary>
+), document.getElementById('root'));

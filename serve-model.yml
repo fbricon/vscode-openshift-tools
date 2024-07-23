@@ -1,0 +1,11 @@
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: qwen2-05b-assistant
+spec:
+  predictor:
+    model:
+      modelFormat:
+        name: gguf
+      runtime: llama-cpp-python
+      storageUri: pvc://llm-qwen2-05b/

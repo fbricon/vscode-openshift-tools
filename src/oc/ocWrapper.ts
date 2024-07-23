@@ -12,6 +12,7 @@ import { CliChannel, ExecutionContext } from '../cli';
 import { isOpenShiftCluster, KubeConfigUtils } from '../util/kubeUtils';
 import { Project } from './project';
 import { ClusterType, KubernetesConsole } from './types';
+import { DeployInferenceImageRequest } from '../aiModelSupport/deployInferenceModelRequest';
 
 /**
  * A wrapper around the `oc` CLI tool.
@@ -36,12 +37,21 @@ export class Oc {
      * @param appName the name of the application
      * @returns a list of all resources of the given type in the given namespace
      */
+
+    getKubernetesObjectsMap = new Map<string,KubernetesObject[]>();
+
     public async getKubernetesObjects(
         resourceType: string,
         namespace?: string,
         appName?: string,
         executionContext?: ExecutionContext
     ): Promise<KubernetesObject[]> {
+        const res = this.getKubernetesObjectsMap.get(resourceType);
+        if (res !== undefined) {
+            return res;
+        }
+        // eslint-disable-next-line no-console
+        console.log(`Oc.getKubernetesObjectCommand ${resourceType}`);
         const result = await CliChannel.getInstance().executeTool(
             Oc.getKubernetesObjectCommand(resourceType, namespace, appName),
             undefined, true, executionContext);
@@ -521,6 +531,165 @@ export class Oc {
             cmdText
         )
             .then((result) => result.stdout);
+    }
+
+    public async deployInferenceImage(deployInferenceImageRequest: DeployInferenceImageRequest): Promise<void> {
+        await this.setupPvc(deployInferenceImageRequest);
+        //await this.waitForPvcAvailable(deployInferenceImageRequest.pvc.name);
+        await this.setupInferenceImage(deployInferenceImageRequest);
+        await this.serveInferenceImage(deployInferenceImageRequest);
+    }
+
+    // private async waitForPvcAvailable(pvcName: string) {
+    //     let keepWaiting = true;
+    //     while (keepWaiting) {
+    //         const isBound = await this.isPvcBound(pvcName);
+    //         if (isBound) {
+    //             keepWaiting = false;
+    //             break;
+    //         }
+    //         // Wait for a short period before checking again
+    //         await this.delay(1000); // 1 seconds
+    //     }
+    // }
+
+    private delay(ms: number): Promise<void> {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    private async isPvcBound(pvcName: string): Promise<boolean> {
+        return await CliChannel.getInstance().executeTool(
+            new CommandText('oc', `get pvc ${pvcName}`)
+        )
+        .then((result) => {
+            // oc doesn't handle switching to the newly created namespace/project
+            return result.stdout.includes('Bound');
+        });
+    }
+
+    public async setupPvc(deployInferenceImageRequest: DeployInferenceImageRequest): Promise<void> {
+        if (!deployInferenceImageRequest.pvc) {
+            return;
+        }
+        const pvcTemplate = `apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ${deployInferenceImageRequest.pvc.name}
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: ${deployInferenceImageRequest.pvc.size}
+  volumeMode: Filesystem
+`;
+        const tempJsonFile = await new Promise<string>((resolve, reject) => {
+            tmp.file({ postfix: '.json' }, (err, name) => {
+                if (err) {
+                    reject(err);
+                }
+                resolve(name);
+            });
+        });
+        try {
+            await fs.writeFile(tempJsonFile, pvcTemplate);
+            // call oc create -f path/to/file until odo does support creating services without component
+            await CliChannel.getInstance().executeTool(
+                new CommandText('oc', 'apply', [
+                    new CommandOption('-n', deployInferenceImageRequest.namespace),
+                    new CommandOption('-f', tempJsonFile)
+                ]),
+            );
+        } finally {
+            await fs.unlink(tempJsonFile);
+        }
+    }
+
+    public async setupInferenceImage(deployInferenceImageRequest: DeployInferenceImageRequest): Promise<void> {
+        //modelName = https://huggingface.co/instructlab/granite-7b-lab-GGUF/resolve/main/granite-7b-lab-Q4_K_M.gguf
+        const setupModelTemplate =
+`apiVersion: v1
+kind: Pod
+metadata:
+  name: setup-${deployInferenceImageRequest.serviceName}
+spec:
+  containers:
+  - command:
+    - wget
+    - --continue
+    - --output-document
+    - /mnt/models/model.gguf
+    - ${deployInferenceImageRequest.modelName}
+    image: busybox
+    name: download-model
+    volumeMounts:
+    - mountPath: /mnt/models/
+      name: model-volume
+  restartPolicy: Never
+  volumes:
+  - name: model-volume
+    persistentVolumeClaim:
+      claimName: ${deployInferenceImageRequest.pvc.name}
+`
+
+        const tempJsonFile = await new Promise<string>((resolve, reject) => {
+            tmp.file({ postfix: '.json' }, (err, name) => {
+                if (err) {
+                    reject(err);
+                }
+                resolve(name);
+            });
+        });
+        try {
+            await fs.writeFile(tempJsonFile, setupModelTemplate);
+            // call oc create -f path/to/file until odo does support creating services without component
+            await CliChannel.getInstance().executeTool(
+                new CommandText('oc', 'apply', [
+                    new CommandOption('-n', deployInferenceImageRequest.namespace),
+                    new CommandOption('-f', tempJsonFile)
+                ]),
+            );
+        } finally {
+            await fs.unlink(tempJsonFile);
+        }
+    }
+
+    public async serveInferenceImage(deployInferenceImageRequest: DeployInferenceImageRequest): Promise<void> {
+        const tempJsonFile = await new Promise<string>((resolve, reject) => {
+            tmp.file({ postfix: '.json' }, (err, name) => {
+                if (err) {
+                    reject(err);
+                }
+                resolve(name);
+            });
+        });
+
+        const serveModel =
+`apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: ${deployInferenceImageRequest.serviceName}
+spec:
+  predictor:
+    model:
+      modelFormat:
+        name: ${deployInferenceImageRequest.modelFormat}
+      runtime: ${deployInferenceImageRequest.runtime}
+      storageUri: pvc://${deployInferenceImageRequest.pvc.name}/
+`;
+
+        try {
+            await fs.writeFile(tempJsonFile, serveModel);
+            // call oc create -f path/to/file until odo does support creating services without component
+            await CliChannel.getInstance().executeTool(
+                new CommandText('oc', 'apply', [
+                    new CommandOption('-n', deployInferenceImageRequest.namespace),
+                    new CommandOption('-f', tempJsonFile)
+                ])
+            );
+        } finally {
+            await fs.unlink(tempJsonFile);
+        }
     }
 
     /**

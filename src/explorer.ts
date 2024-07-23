@@ -40,12 +40,21 @@ import { vsCommand } from './vscommand';
 import { CustomResourceDefinitionStub, K8sResourceKind } from './webview/common/createServiceTypes';
 import { OpenShiftTerminalManager } from './webview/openshift-terminal/openShiftTerminal';
 
-type ExplorerItem = KubernetesObject | Helm.HelmRelease | Context | TreeItem | OpenShiftObject | HelmRepo;
+type ExplorerItem = KubernetesObject | Helm.HelmRelease | Context | TreeItem | OpenShiftObject | HelmRepo | AiModelObject;
 
 export type OpenShiftObject = {
     kind: string,
     metadata: {
         name: string
+    },
+}
+
+export type AiModelObject = {
+    metadata: {
+        name: string
+        inferenceEndpoint: string
+        provider: string
+        description?: string
     },
 }
 
@@ -229,6 +238,17 @@ export class OpenShiftExplorer implements TreeDataProvider<ExplorerItem>, Dispos
             };
         }
 
+        if ('metadata' in element && 'inferenceEndpoint' in element.metadata) {
+            return {
+                contextValue: 'openshift.ai.inferenceEndpoint',
+                label:  element.metadata.name,
+                collapsibleState: TreeItemCollapsibleState.None,
+                description:  element.metadata.inferenceEndpoint,
+                iconPath: path.resolve(__dirname, '../../images/context/ai-icon.svg'),
+                tooltip: `${element.metadata.description}`,
+            };
+        }
+
         // otherwise it is a KubernetesObject instance
         if ('kind' in element) {
             if (element.kind === 'project') {
@@ -244,6 +264,11 @@ export class OpenShiftExplorer implements TreeDataProvider<ExplorerItem>, Dispos
             } else if (element.kind === 'helmContexts') {
                 return {
                     label: 'Helm',
+                    collapsibleState: TreeItemCollapsibleState.Collapsed
+                }
+            } else if (element.kind === 'aiModels') {
+                return {
+                    label: 'AI Models',
                     collapsibleState: TreeItemCollapsibleState.Collapsed
                 }
             } else if (element.kind === 'helmRepos') {
@@ -545,7 +570,23 @@ export class OpenShiftExplorer implements TreeDataProvider<ExplorerItem>, Dispos
                     name: 'workloads'
                 },
             } as OpenShiftObject
-            result.push(deployments, helmContexts, workLoads);
+            const aiModels = {
+                kind: 'aiModels',
+                metadata: {
+                    name: 'aiModels'
+                },
+            } as OpenShiftObject
+            result.push(deployments, helmContexts, workLoads, aiModels);
+        } else if ('kind' in element && element.kind=== 'aiModels') {
+            const model1 = {
+                metadata: {
+                    provider: 'ollama',
+                    name: 'granite-code',
+                    inferenceEndpoint: 'http://localhost:11434',
+                    description:'Granite Code is a family of decoder-only code model designed for code generative tasks (e.g. code generation, code explanation, code fixing, etc.).'
+                },
+            };
+            result.push(model1);
         } else if ('kind' in element && element.kind === 'workloads') {
             const pods = {
                 kind: 'pods',
@@ -583,27 +624,27 @@ export class OpenShiftExplorer implements TreeDataProvider<ExplorerItem>, Dispos
                     name: 'cron jobs'
                 },
             } as OpenShiftObject;
-            const deploymentConfigs = {
-                kind: 'deploymentconfigs',
-                metadata: {
-                    name: 'deployment configs'
-                },
-            } as OpenShiftObject;
-            const imageStreams = {
-                kind: 'imagestreams',
-                metadata: {
-                    name: 'image streams'
-                },
-            } as OpenShiftObject;
-            const buildConfigs = {
-                kind: 'buildConfigs',
-                metadata: {
-                    name: 'build configs'
-                },
-            } as OpenShiftObject;
             result.push(pods,
                 statefulSets, daemonSets, jobs, cronJobs);
             if (isOpenshiftCluster) {
+                const deploymentConfigs = {
+                    kind: 'deploymentconfigs',
+                    metadata: {
+                        name: 'deployment configs'
+                    },
+                } as OpenShiftObject;
+                const imageStreams = {
+                    kind: 'imagestreams',
+                    metadata: {
+                        name: 'image streams'
+                    },
+                } as OpenShiftObject;
+                const buildConfigs = {
+                    kind: 'buildConfigs',
+                    metadata: {
+                        name: 'build configs'
+                    },
+                } as OpenShiftObject;
                 result.push(deploymentConfigs, imageStreams, buildConfigs, routes);
             }
         } else if ('kind' in element) {

@@ -36,7 +36,6 @@
 		"Functions",
 		"Red Hat",
 		"devsandbox",
-		"kubernetes-extension-cloud-provider",
 		"debuggers",
 		"K8s",
 		"Cloud",
@@ -72,6 +71,7 @@
 	},
 	"dependencies": {
 		"@kubernetes/client-node": "^0.21.0",
+		"@redhat-developer/vscode-extension-proposals": "^0.0.22",
 		"@redhat-developer/vscode-redhat-telemetry": "^0.8.0",
 		"clsx": "^2.1.1",
 		"dockerode": "^4.0.2",
@@ -813,6 +813,11 @@
 				"category": "OpenShift"
 			},
 			{
+				"command": "openshift.ai.model.deploy",
+				"title": "Deploy AI Model",
+				"category": "OpenShift AI"
+			},
+			{
 				"command": "openshift.deployment.create.fromImageUrl",
 				"title": "Create Deployment from Container Image URL",
 				"category": "OpenShift"
@@ -858,6 +863,10 @@
 			{
 				"command": "openshift.resource.portForward",
 				"title": "Port Forward"
+			},
+			{
+				"command": "openshift.ai.configure.assistant",
+				"title": "Use as code assistant..."
 			},
 			{
 				"command": "openshift.openStatusBar",
@@ -1352,6 +1361,10 @@
 				},
 				{
 					"command": "openshift.resource.portForward",
+					"when": "false"
+				},
+				{
+					"command": "openshift.ai.configure.assistant",
 					"when": "false"
 				},
 				{
@@ -1932,6 +1945,10 @@
 				{
 					"command": "openshift.resource.portForward",
 					"when": "view == openshiftProjectExplorer && viewItem =~ /^openshift\\.k8sObject\\.(?!helm)/"
+				},
+				{
+					"command": "openshift.ai.configure.assistant",
+					"when": "view == openshiftProjectExplorer && viewItem =~ /^openshift\\.ai\\.inferenceEndpoint/"
 				},
 				{
 					"command": "openshift.resource.delete",

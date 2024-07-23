@@ -5,6 +5,7 @@
 
 import { getRedHatService, TelemetryEvent, TelemetryService } from '@redhat-developer/vscode-redhat-telemetry';
 import { ExtensionContext } from 'vscode';
+//import { initRecommendationService } from './aiModelSupport/recommendationService';
 
 let telemetryService: TelemetryService;
 
@@ -20,6 +21,7 @@ export async function startTelemetry(context: ExtensionContext): Promise<void> {
     try {
         const redHatService = await getRedHatService(context);
         telemetryService = await redHatService.getTelemetryService();
+        //await initRecommendationService(context, telemetryService);
     } catch(error) {
         // eslint-disable-next-line no-console
         console.log(`${error}`);

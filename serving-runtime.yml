@@ -1,0 +1,17 @@
+apiVersion: serving.kserve.io/v1alpha1
+kind: ServingRuntime
+metadata:
+  name: llama-cpp-python
+spec:
+  multiModel: false
+  supportedModelFormats:
+  - autoSelect: true
+    name: gguf
+  containers:
+  - env:
+    - name: MODEL_PATH
+      value: /mnt/models/model.gguf
+    - name: MODEL_CHAT_FORMAT
+      value: openchat
+    image: quay.io/phmartin/llama_cpp_serving:v1
+    name: kserve-container

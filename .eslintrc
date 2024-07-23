@@ -10,7 +10,7 @@
     "plugin:@typescript-eslint/eslint-recommended",
     "plugin:@typescript-eslint/recommended",
     "plugin:@typescript-eslint/recommended-requiring-type-checking",
-    "prettier",
+    "prettier"
   ],
   "parser": "@typescript-eslint/parser",
   "parserOptions": {
@@ -87,9 +87,9 @@
     "no-global-strict": 0,
     "no-irregular-whitespace": ["error"],
     "no-param-reassign": ["error", { "props": false }],
-    "no-shadow": 1,
     "no-underscore-dangle": 0,
     "no-useless-constructor": "off",
+    "@typescript-eslint/no-shadow": 1,
     "@typescript-eslint/await-thenable": "error",
     "@typescript-eslint/unbound-method": ["error", { "ignoreStatic": true }],
     "@typescript-eslint/restrict-template-expressions": 1,
@@ -117,7 +117,7 @@
     "jsdoc/no-types": "error",
     "jsdoc/require-param-name": "error",
     "jsdoc/require-returns-check": "error",
-    "jsdoc/require-returns-description": "error",
+    "jsdoc/require-returns-description": "error"
   },
   "overrides": [
     {
